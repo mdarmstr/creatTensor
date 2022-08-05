@@ -2,25 +2,65 @@ function creatAnalysis(tnsr,creatMs2, creatMs3)
 
 %Let's first load the two creatinine tensors
 
-msx = 50:660;
+msx = (50:660)';
+msn = (1:1000)';
 
-%2tms
-[~,ia,~] = intersect(creatMs2(:,1),msx);
+loadCreat2 = [msn, zeros(1000,1)];
+loadCreat3 = [msn, zeros(1000,1)];
 
-loadCreat2 = creatMs2(ia,2);
-loadCreat2 = loadCreat2 ./ norm(loadCreat2);
+%I AM SO SICK OF THIS PROBLEM
+%tms2
+tms2mz = min(creatMs2(:,1)):max(creatMs2(:,1));
 
-%3tms
-[~,ia,~] = intersect(creatMs3(:,1),msx);
+for ii = tms2mz
+    loadCreat2(ii,2) = creatMs2(creatMs2(:,1)==ii,2);
+end
 
-loadCreat3 = creatMs3(ia,2);
-loadCreat3 = loadCreat3 ./ norm(loadCreat3);
+tms2 = loadCreat2(msx,2);
+tms2 = tms2./norm(tms2);
+
+%tms3
+tms3mz = min(creatMs3(:,1)):max(creatMs3(:,1));
+
+for ii = tms3mz
+    if isempty(creatMs3(creatMs3(:,1)==ii,2))
+        loadCreat3(ii,2) = 0;
+    else
+        loadCreat3(ii,2) = creatMs3(creatMs3(:,1)==ii,2);
+    end
+end
+
+tms3 = loadCreat3(msx,2);
+tms3 = tms3./norm(tms3);
+
+S = [tms3];
 
 %Creat the regression vector
 %unfold the array:
 sz = size(tnsr);
-unfoldTnsr = reshape(permute(tnsr(:,:,:,1), [1, 3, 2, 4]), sz(1) * sz(3), sz(2));
+X = reshape(permute(tnsr(:,:,:,1), [1, 3, 2, 4]), sz(1) * sz(3), sz(2));
+figure(2);
+imagesc(squeeze(sum(tnsr(:,:,:,1),2)));
 
-pause();
+X = X - mean(X,1);
+Xc = X - X*(S*S');
+
+W = (sz(1)*sz(3) - 1)^(-1) .* Xc'*Xc;
+
+
+%Okay, now let's do Generalized Least Squares (GLS) for this bitch
+
+Wi = pinv(S'*pinv(W) *S) * S';
+
+for ii = 1:(sz(1)*sz(3))
+    c(:,ii) = Wi * X(ii,:)';
+end
+
+cimg = reshape(c(1,:),sz(1),sz(3));
+figure(1);
+imagesc(cimg);
+
+
+imagespause();
 
 end
